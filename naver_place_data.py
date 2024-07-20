@@ -32,34 +32,50 @@ def backupData(ranking_df, save_df):
     if not os.path.exists('backup'):
         os.makedirs('backup')
     
-    if (ranking_df != ''):
+    if (ranking_df is not None):
         ranking_df.to_csv('backup/ranking.csv')
     
-    if (save_df != ''):
+    if (save_df is not None):
         save_df.to_csv('backup/save.csv')
 
-backup_ranking_path = 'https://raw.githubusercontent.com/darady/rivna/main/backup/ranking.csv'
-backup_save_path = 'https://raw.githubusercontent.com/darady/rivna/main/backup/save.csv'
+backup_ranking_path = 'https://raw.githubusercontent.com/darady/Develop/main/backup/ranking.csv'
+backup_save_path = 'https://raw.githubusercontent.com/darady/Develop/main/backup/save.csv'
 
 @st.cache_data
 def initRankingDf(ranking_file):
-    ranking_df = ''
+    ranking_df = None
     if ranking_file is not None:
         ranking_df = pd.read_csv(ranking_file)
-    # else:
-    #     response = requests.get(backup_ranking_path)
-    #     ranking_df = pd.read_csv(StringIO(response.text), dtype=object)
+
+        itemList = []
+        for index in range(len(ranking_df.columns)):
+            itemList.append(ranking_df.columns[index])
+
+        itemDf = pd.DataFrame(columns=itemList)
+        itemDf.loc[0] = itemList
+
+        ranking_df = pd.concat([itemDf, ranking_df], ignore_index=True)
+    else:
+        ranking_df = pd.read_csv(backup_ranking_path)
     return ranking_df
 
 @st.cache_data
 def initSaveDf(save_file):
-    save_df = ''
+    save_df = None
     if save_file is not None:
         save_df = pd.read_csv(save_file)
-    # else:
-    #     response = requests.get(backup_save_path)
-    #     save_df = pd.read_csv(response.text)
-    
+
+        itemList = []
+        for index in range(len(save_df.columns)):
+            itemList.append(save_df.columns[index])
+
+        itemDf = pd.DataFrame(columns=itemList)
+        itemDf.loc[0] = itemList
+
+        save_df = pd.concat([itemDf, save_df], ignore_index=True)
+    else:
+        save_df = pd.read_csv(backup_save_path)
+
     return save_df
 
 ranking_df = initRankingDf(ranking_file)
@@ -74,12 +90,13 @@ def isna(x):
 #-----	, 선재안남	서울용산맛집	https://m.place.naver.com/restaurant/1235024042/home	안남 신용산점		2024-06-26 12:14:46	-	170위	188위	185위
 
 class RankingData:
-    def __init__(self, key, group, searchWord, matchingValue, placeName, rankingList):
+    def __init__(self, key, group, searchWord, matchingValue, placeName, dateList, rankingList):
         self.key = key
         self.group = group
         self.searchWord = searchWord
         self.matchingValue = matchingValue
         self.placeName = placeName
+        self.dateList = dateList
         self.rankingList = rankingList
 
 
@@ -87,45 +104,50 @@ class RankingData:
 def parseRankingDf(ranking_df):
     resultList = list()
     dataIndex = 0
+
+    ranking_df
+
     for index in range(len(ranking_df.index)):
         if (len(ranking_df.index) <= index):
             break
 
-        rawData = ranking_df[dataIndex:dataIndex+1]
-
-        # if isna(rawData.iloc[0, 6]):
-        #     continue
+        rawData = ranking_df[dataIndex:dataIndex+2]
 
         rankingList = list()
-        
-        # rawData.shape
+        dateList = list()
 
-        if len(rawData.index) <= 0:
+        if len(rawData.index) <= 1:
             break
 
         for idx in range(len(rawData.columns)):
             if idx+7 >= len(rawData.columns):
                 continue
-
-            rankingStr = rawData.iloc[0, idx+7]
+            
+            dateStr = rawData.iloc[0, idx+7]
+            rankingStr = rawData.iloc[1, idx+7]
             if rankingStr == 'nan' or rankingStr is None or isna(rankingStr) or rankingStr == '-':
                 rankingStr = '-1'
-            
+                dataStr = '-'
+
             rankingStr = re.sub('위','', rankingStr)
+
+            dateList.append(dateStr)
             rankingList.append(int(rankingStr))
         
-        rankingData = RankingData(rawData.iloc[0, 6], rawData.iloc[0, 1], rawData.iloc[0, 2]
-                                  , rawData.iloc[0, 3], rawData.iloc[0, 4], rankingList)
+        rawData
+
+        rankingData = RankingData(rawData.iloc[1, 6], rawData.iloc[1, 1], rawData.iloc[1, 2]
+                                  , rawData.iloc[1, 3], rawData.iloc[1, 4], dateList, rankingList)
         resultList.append(rankingData)
 
-        # rankingData
+        rankingData
 
         dataIndex += 3
     return resultList
 
 # rankingDataList = parseRankingDf(ranking_df)
 
-if ranking_file is not None:
+if ranking_df is not None:
     rankingDataList = parseRankingDf(ranking_df)
 
     placeNameList = list()
@@ -139,6 +161,8 @@ if ranking_file is not None:
 
     placeNameList = list(set(placeNameList))
 
+    placeNameList
+
     st.write('# Ranking data')
 
     selctedPlaceName = st.selectbox(
@@ -151,32 +175,14 @@ if ranking_file is not None:
 
     rankingChartDf = pd.DataFrame()
 
-    # rankingChartDf[rankingDataList[0].searchWord] = rankingDataList[0].rankingList
-
-    # N사_플레이스 순위 체크_전체_20240712.csv
-    # TODO update 필요
-    date = re.sub('N사_플레이스 순위 체크_전체_','', ranking_file.name)
-    date = re.sub('.csv','', date)
-    date = datetime.strptime(date, '%Y%m%d')
-
-    
-    # st.write(date)
-    # datesData = list()
-    # for index in range(len(rankingDataList[0].rankingList)):
-    #     datesData.append(date+timedelta(days=index))
-    # rankingChartDf['date'] = datesData
-
-    # for index in range(len(rankingDataList)):
-    #     if (selctedPlaceName == rankingDataList[index].placeName):
-    #         rankingChartDf[rankingDataList[index].searchWord] = rankingDataList[index].rankingList
-
     for index in range(len(rankingDataList)):
         if (selctedPlaceName == rankingDataList[index].placeName):
             searchWord = rankingDataList[index].searchWord
             rankingList = rankingDataList[index].rankingList
+            dateList = rankingDataList[index].dateList
             
             for idx in range(len(rankingList)):
-                currentDate = date-timedelta(days=idx)
+                currentDate = dateList[idx]
 
                 # st.write(currentDate)
                 if rankingList[idx] >= 0:
@@ -249,14 +255,14 @@ def parseSaveDf(save_df):
     resultList = list()
     dataIndex = 0
 
-    itemList = []
-    for index in range(len(save_df.columns)):
-        itemList.append(save_df.columns[index])
+    # itemList = []
+    # for index in range(len(save_df.columns)):
+    #     itemList.append(save_df.columns[index])
 
-    itemDf = pd.DataFrame(columns=itemList)
-    itemDf.loc[0] = itemList
+    # itemDf = pd.DataFrame(columns=itemList)
+    # itemDf.loc[0] = itemList
 
-    save_df = pd.concat([itemDf, save_df], ignore_index=True)
+    # save_df = pd.concat([itemDf, save_df], ignore_index=True)
 
     for index in range(len(save_df.index)):
         if (len(save_df.index) <= index):
@@ -267,7 +273,7 @@ def parseSaveDf(save_df):
         saveList = list()
         dateList = list()
 
-        if len(rawData.index) <= 0:
+        if len(rawData.index) <= 1:
             break
 
         for idx in range(len(rawData.columns)):
@@ -293,7 +299,7 @@ def parseSaveDf(save_df):
         dataIndex += 3
     return resultList
 
-if save_file is not None:
+if save_df is not None:
     saveDataList = parseSaveDf(save_df)
 
     placeNameList = list()
