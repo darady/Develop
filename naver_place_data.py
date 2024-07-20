@@ -57,8 +57,6 @@ def initRankingDf(ranking_file):
         ranking_df = pd.concat([itemDf, ranking_df], ignore_index=True)
     else:
         ranking_df = pd.read_csv(backup_ranking_path)
-
-        ranking_df
     return ranking_df
 
 @st.cache_data
@@ -154,9 +152,6 @@ if ranking_df is not None:
         placeNameList.append(placeName)
 
     placeNameList = list(set(placeNameList))
-
-    placeNameList
-
     st.write('# Ranking data')
 
     selctedPlaceName = st.selectbox(
