@@ -59,6 +59,7 @@ def initSaveDf(save_file):
     # else:
     #     response = requests.get(backup_save_path)
     #     save_df = pd.read_csv(response.text)
+    
     return save_df
 
 ranking_df = initRankingDf(ranking_file)
