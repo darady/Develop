@@ -33,10 +33,10 @@ def backupData(ranking_df, save_df):
         os.makedirs('backup')
     
     if (ranking_df is not None):
-        ranking_df.to_csv('backup/ranking.csv')
+        ranking_df.to_csv('backup/ranking.csv', index = False)
     
     if (save_df is not None):
-        save_df.to_csv('backup/save.csv')
+        save_df.to_csv('backup/save.csv', index = False)
 
 backup_ranking_path = 'https://raw.githubusercontent.com/darady/Develop/main/backup/ranking.csv'
 backup_save_path = 'https://raw.githubusercontent.com/darady/Develop/main/backup/save.csv'
@@ -57,6 +57,8 @@ def initRankingDf(ranking_file):
         ranking_df = pd.concat([itemDf, ranking_df], ignore_index=True)
     else:
         ranking_df = pd.read_csv(backup_ranking_path)
+
+        ranking_df
     return ranking_df
 
 @st.cache_data
@@ -81,8 +83,6 @@ def initSaveDf(save_file):
 ranking_df = initRankingDf(ranking_file)
 save_df = initSaveDf(save_file)
 
-
-
 def isna(x):
     return x != x
 
@@ -104,8 +104,6 @@ class RankingData:
 def parseRankingDf(ranking_df):
     resultList = list()
     dataIndex = 0
-
-    ranking_df
 
     for index in range(len(ranking_df.index)):
         if (len(ranking_df.index) <= index):
@@ -133,14 +131,10 @@ def parseRankingDf(ranking_df):
 
             dateList.append(dateStr)
             rankingList.append(int(rankingStr))
-        
-        rawData
 
         rankingData = RankingData(rawData.iloc[1, 6], rawData.iloc[1, 1], rawData.iloc[1, 2]
                                   , rawData.iloc[1, 3], rawData.iloc[1, 4], dateList, rankingList)
         resultList.append(rankingData)
-
-        rankingData
 
         dataIndex += 3
     return resultList
