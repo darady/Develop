@@ -321,7 +321,6 @@ if save_df is not None:
     # # st.write(date)
 
     # date = datetime.strptime(date, '%Y%m%d')
-
     
     # st.write(date)
     # datesData = list()
@@ -354,7 +353,6 @@ if save_df is not None:
                     saveChartDf = pd.concat([saveChartDf, itemDf], ignore_index=True)
 
                     beforeSaveData = saveList[idx]
-
     # saveChartDf
 
     highlight = alt.selection_point(on='pointerover', fields=['keyword'], nearest=True)
