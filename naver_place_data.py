@@ -88,7 +88,7 @@ def isna(x):
 #-----	, 선재안남	서울용산맛집	https://m.place.naver.com/restaurant/1235024042/home	안남 신용산점		2024-06-26 12:14:46	-	170위	188위	185위
 
 class RankingData:
-    def __init__(self, key, group, searchWord, matchingValue, placeName, dateList, rankingList):
+    def __init__(self, key, group, searchWord, matchingValue, placeName, dateList, rankingList, saveList, blogList, visitList):
         self.key = key
         self.group = group
         self.searchWord = searchWord
@@ -96,6 +96,9 @@ class RankingData:
         self.placeName = placeName
         self.dateList = dateList
         self.rankingList = rankingList
+        self.saveList = saveList
+        self.blogList = blogList
+        self.visitList = visitList
 
 
 @st.cache_data
@@ -107,10 +110,13 @@ def parseRankingDf(ranking_df):
         if (len(ranking_df.index) <= index):
             break
 
-        rawData = ranking_df[dataIndex:dataIndex+2]
+        rawData = ranking_df[dataIndex:dataIndex+5]
 
-        rankingList = list()
         dateList = list()
+        rankingList = list()
+        saveList = list()
+        blogList = list()
+        visitList = list()
 
         if len(rawData.index) <= 1:
             break
@@ -121,20 +127,61 @@ def parseRankingDf(ranking_df):
             
             dateStr = rawData.iloc[0, idx+7]
             rankingStr = rawData.iloc[1, idx+7]
+            saveStr = rawData.iloc[2, idx+7]
+            blogStr = rawData.iloc[3, idx+7]
+            visitStr = rawData.iloc[4, idx+7]
+
             if rankingStr == 'nan' or rankingStr is None or isna(rankingStr) or rankingStr == '-':
                 rankingStr = '-1'
                 dataStr = '-'
-
             rankingStr = re.sub('위','', rankingStr)
+
+            if saveStr == 'nan' or saveStr is None or isna(saveStr) or saveStr == '-':
+                saveStr = '-1'
+            saveStr = re.sub('\+','', saveStr)
+            saveStr = re.sub(',','', saveStr)
+
+            if blogStr == 'nan' or blogStr is None or isna(blogStr) or blogStr == '-':
+                blogStr = '-1'
+            blogStr = re.sub('블 ','', blogStr)
+            blogStr = re.sub(',','', blogStr)
+            blogStr = re.sub('개','', blogStr)
+
+            if visitStr == 'nan' or visitStr is None or isna(visitStr) or visitStr == '-':
+                visitStr = '-1'
+            visitStr = re.sub('방 ','', visitStr)
+            visitStr = re.sub(',','', visitStr)
+            visitStr = re.sub('개','', visitStr)
+
+            #rawData.iloc[1, 2]
 
             dateList.append(dateStr)
             rankingList.append(int(rankingStr))
 
+            try:
+                saveList.append(int(saveStr))
+            except Exception as e:
+                saveList.append(-1)
+            
+            try:
+                blogList.append(int(blogStr))
+            except Exception as e:
+                blogList.append(-1)
+
+            try:
+                visitList.append(int(visitStr))
+            except Exception as e:
+                visitList.append(-1)
+            
+            #saveList.append(int(saveStr))
+            #blogList.append(int(blogStr))
+            #visitList.append(int(visitStr))
+
         rankingData = RankingData(rawData.iloc[1, 6], rawData.iloc[1, 1], rawData.iloc[1, 2]
-                                  , rawData.iloc[1, 3], rawData.iloc[1, 4], dateList, rankingList)
+                                  , rawData.iloc[1, 3], rawData.iloc[1, 4], dateList, rankingList, saveList, blogList, visitList)
         resultList.append(rankingData)
 
-        dataIndex += 3
+        dataIndex += 6
     return resultList
 
 # rankingDataList = parseRankingDf(ranking_df)
@@ -152,34 +199,52 @@ if ranking_df is not None:
         placeNameList.append(placeName)
 
     placeNameList = list(set(placeNameList))
-    st.write('# Ranking data')
+    st.write('# 플레이스 순위 정보')
 
     selctedPlaceName = st.selectbox(
-        "Select Place name",
+        "플레이스 선택",
         placeNameList
     )
 
     rankingDatas = list()
     rankingKewards = list()
 
+    #make ranking chart
+    st.write('#### 키워드 랭킹')
+
     rankingChartDf = pd.DataFrame()
 
     for index in range(len(rankingDataList)):
         if (selctedPlaceName == rankingDataList[index].placeName):
             searchWord = rankingDataList[index].searchWord
-            rankingList = rankingDataList[index].rankingList
             dateList = rankingDataList[index].dateList
+
+            rankingList = rankingDataList[index].rankingList
+            saveList = rankingDataList[index].saveList
+            blogList = rankingDataList[index].blogList
+            visitList = rankingDataList[index].visitList
             
+            beforeSaveData = -1
             for idx in range(len(rankingList)):
                 currentDate = dateList[idx]
 
-                # st.write(currentDate)
+                if beforeSaveData < 0:
+                    beforeSaveData = saveList[idx]
+                
+                if saveList[idx] < 0:
+                    saveList[idx] = beforeSaveData
+
                 if rankingList[idx] >= 0:
                     itemDf = pd.DataFrame({'keyword' : [ searchWord ],
                             'date' : [ currentDate ],
-                            'ranking' : [ rankingList[idx] ]})
+                            'ranking' : [ rankingList[idx] ],
+                            'save' : [ saveList[idx] ],
+                            'gap' : [ beforeSaveData - saveList[idx] ],
+                            'blog' : [ blogList[idx] ],
+                            'visit' : [ visitList[idx] ]})
                     rankingChartDf = pd.concat([rankingChartDf, itemDf], ignore_index=True)
 
+                    beforeSaveData = saveList[idx]
     #         keyword    keyword2
     # date     ranking      1
     # date2       2         2
@@ -189,7 +254,7 @@ if ranking_df is not None:
     # 1     성수맛집        5-12    2
     # 1     성수맛집        5-13    1
 
-    # rankingChartDf
+    rankingChartDf
 
     highlight = alt.selection_point(on='pointerover', fields=['keyword'], nearest=True)
 
@@ -227,16 +292,166 @@ if ranking_df is not None:
     line + circle + text
 
 
+    #save chart
+    st.write('#### 네이버 저장하기')
+
+    highlight = alt.selection_point(on='pointerover', fields=['keyword'], nearest=True)
+
+    # Create a common chart object
+    chart = alt.Chart(rankingChartDf).encode(
+        alt.Color("keyword").legend(None)
+    ).properties(width=800, height=350)
+
+    # Draw the line
+    line = chart.mark_line().encode(
+        x="date:T",
+        y="save:Q",
+        size=alt.condition(~highlight, alt.value(1), alt.value(3))
+    )
+
+    # Use the `argmax` aggregate to limit the dataset to the final value
+    label = chart.encode(
+        x='max(date):T',
+        y=alt.Y('save:Q').aggregate(argmax='date'),
+        text='keyword'
+    )
+
+    # Create a text label
+    text = label.mark_text(align='left', dx=4)
+
+    # Create a circle annotation
+    # circle = label.mark_circle()
+    circle = label.mark_circle().encode(
+        opacity=alt.value(0)
+    ).add_params(
+        highlight
+    )  
+    
+    # Draw the chart with all the layers combined
+    line + circle + text
+
+    # Create a common chart object
+    chart = alt.Chart(rankingChartDf).encode(
+        alt.Color("keyword").legend(None)
+    ).properties(width=800, height=350)
+
+    # Draw the line
+    line = chart.mark_bar().encode(
+        x="date:T",
+        y="gap:Q"
+    )
+
+    # Use the `argmax` aggregate to limit the dataset to the final value
+    label = chart.encode(
+        x='max(date):T',
+        y=alt.Y('gap:Q').aggregate(argmax='date'),
+        text='keyword'
+    )
+
+    # Create a text label
+    text = label.mark_text(align='left', dx=4)
+
+    # Create a circle annotation
+    # circle = label.mark_circle()
+    circle = label.mark_circle().encode(
+        opacity=alt.value(0)
+    ).add_params(
+        highlight
+    )  
+    
+    # Draw the chart with all the layers combined
+    line + circle + text
+
+    #blog chart
+    st.write('#### 블로그')
+
+    highlight = alt.selection_point(on='pointerover', fields=['keyword'], nearest=True)
+
+    # Create a common chart object
+    chart = alt.Chart(rankingChartDf).encode(
+        alt.Color("keyword").legend(None)
+    ).properties(width=800, height=350)
+
+    # Draw the line
+    line = chart.mark_line().encode(
+        x="date:T",
+        y="blog:Q",
+        size=alt.condition(~highlight, alt.value(1), alt.value(3))
+    )
+
+    # Use the `argmax` aggregate to limit the dataset to the final value
+    label = chart.encode(
+        x='max(date):T',
+        y=alt.Y('blog:Q').aggregate(argmax='date'),
+        text='keyword'
+    )
+
+    # Create a text label
+    text = label.mark_text(align='left', dx=4)
+
+    # Create a circle annotation
+    # circle = label.mark_circle()
+    circle = label.mark_circle().encode(
+        opacity=alt.value(0)
+    ).add_params(
+        highlight
+    )  
+    
+    # Draw the chart with all the layers combined
+    line + circle + text
+
+    #visit chart
+    st.write('#### 방문자 리뷰')
+
+    highlight = alt.selection_point(on='pointerover', fields=['keyword'], nearest=True)
+
+    # Create a common chart object
+    chart = alt.Chart(rankingChartDf).encode(
+        alt.Color("keyword").legend(None)
+    ).properties(width=800, height=350)
+
+    # Draw the line
+    line = chart.mark_line().encode(
+        x="date:T",
+        y="visit:Q",
+        size=alt.condition(~highlight, alt.value(1), alt.value(3))
+    )
+
+    # Use the `argmax` aggregate to limit the dataset to the final value
+    label = chart.encode(
+        x='max(date):T',
+        y=alt.Y('visit:Q').aggregate(argmax='date'),
+        text='keyword'
+    )
+
+    # Create a text label
+    text = label.mark_text(align='left', dx=4)
+
+    # Create a circle annotation
+    # circle = label.mark_circle()
+    circle = label.mark_circle().encode(
+        opacity=alt.value(0)
+    ).add_params(
+        highlight
+    )  
+    
+    # Draw the chart with all the layers combined
+    line + circle + text
+
+
+
 #N사_플레이스 저장 체크	검색어	매칭값	플레이스명	메모	등록일	07-01	06-24
 #-----	성수우동	https://m.place.naver.com/restaurant/1268725018/home?entry=pl	니카이 우동		2024-06-24 13:41:56	15,000+	14,000+
 class SaveData:
-    def __init__(self, key, searchWord, matchingValue, placeName, dateList, saveList):
+    def __init__(self, key, searchWord, matchingValue, placeName, dateList, saveList, blogNumList, visitNumList):
         self.key = key
         self.searchWord = searchWord
         self.matchingValue = matchingValue
         self.placeName = placeName
         self.dateList = dateList
         self.saveList = saveList
+        self.blogNumList = blogNumList
+        self.visitNumList = visitNumList
 
 
 @st.cache_data
@@ -257,35 +472,61 @@ def parseSaveDf(save_df):
         if (len(save_df.index) <= index):
             break
 
-        rawData = save_df[dataIndex:dataIndex+2]
+        rawData = save_df[dataIndex:dataIndex+4]
 
-        saveList = list()
         dateList = list()
+        saveList = list()
+        blogList = list()
+        visitList = list()
 
         if len(rawData.index) <= 1:
             break
 
         for idx in range(len(rawData.columns)):
-            if idx+6 >= len(rawData.columns):
+            if idx+7 >= len(rawData.columns):
                 continue
             
-            dateStr = rawData.iloc[0, idx+6]
-            saveStr = rawData.iloc[1, idx+6]
+            dateStr = rawData.iloc[0, idx+7]
+            saveStr = rawData.iloc[1, idx+7]
+            blogStr = rawData.iloc[2, idx+7]
+            visitStr = rawData.iloc[3, idx+7]
+
             if saveStr == 'nan' or saveStr is None or isna(saveStr) or saveStr == '-':
                 saveStr = '-1'
                 dataStr = '-'
-
             saveStr = re.sub('\+','', saveStr)
             saveStr = re.sub(',','', saveStr)
 
+            if blogStr == 'nan' or blogStr is None or isna(blogStr) or blogStr == '-':
+                blogStr = '-1'
+            blogStr = re.sub('블 ','', blogStr)
+            blogStr = re.sub(',','', blogStr)
+            blogStr = re.sub('개','', blogStr)
+
+            if visitStr == 'nan' or visitStr is None or isna(visitStr) or visitStr == '-':
+                visitStr = '-1'
+            visitStr = re.sub('방 ','', visitStr)
+            visitStr = re.sub(',','', visitStr)
+            visitStr = re.sub('개','', visitStr)
+
             dateList.append(dateStr)
             saveList.append(int(saveStr))
+
+            try:
+                blogList.append(int(blogStr))
+            except Exception as e:
+                blogList.append(-1)
+
+            try:
+                visitList.append(int(visitStr))
+            except Exception as e:
+                visitList.append(-1)
         
-        saveData = SaveData(rawData.iloc[1, 5], rawData.iloc[1, 1], rawData.iloc[1, 2]
-                                  , rawData.iloc[1, 3], dateList, saveList)
+        saveData = SaveData(rawData.iloc[1, 6], rawData.iloc[1, 2], rawData.iloc[1, 3]
+                                  , rawData.iloc[1, 4], dateList, saveList, blogList, visitList)
         resultList.append(saveData)
 
-        dataIndex += 3
+        dataIndex += 5
     return resultList
 
 if save_df is not None:
