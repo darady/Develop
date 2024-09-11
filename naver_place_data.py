@@ -254,7 +254,7 @@ if ranking_df is not None:
     # 1     성수맛집        5-12    2
     # 1     성수맛집        5-13    1
 
-    rankingChartDf
+    #rankingChartDf
 
     highlight = alt.selection_point(on='pointerover', fields=['keyword'], nearest=True)
 
